@@ -2,24 +2,39 @@ require 'pg'
 require 'pry'
 require 'sinatra'
 require 'sinatra/reloader' if development?
+require 'sinatra/activerecord'
 
-helpers do
-  # This helps us run SQL commands
-  def run_sql(sql)
-    db = PG.connect(dbname: 'westeros', host: 'localhost')
-    result = db.exec(sql)
-    db.close
-    result
-  end
+set :database, {
+    adapter: 'postgresql',
+    database: 'westeros',
+    host: 'localhost'
+}
+
+class House < ActiveRecord::Base
+  has_many :people
 end
 
+class Person < ActiveRecord::Base
+  belongs_to :house
+end
+
+# helpers do
+#   # This helps us run SQL commands
+#   def run_sql(sql)
+#     db = PG.connect(dbname: 'westeros', host: 'localhost')
+#     result = db.exec(sql)
+#     db.close
+#     result
+#   end
+# end
+
 get '/' do
+  @people = Person.all
   erb :index
 end
 
 get '/houses' do
-  sql = "SELECT * FROM houses"
-  @houses = run_sql(sql)
+  @houses = House.all
   erb :houses
 end
 
@@ -28,53 +43,43 @@ get '/houses/new' do
 end
 
 post '/houses/new' do
-  name = params[:name]
-  sigil = params[:sigil]
-  motto = params[:motto]
-  sql = "INSERT INTO houses (name, sigil, motto) VALUES ('#{name}','#{sigil}','#{motto}');"
-  run_sql(sql)
+  House.create(params)
   redirect to '/houses'
 end
 
 get '/people/new' do
-  sql = "SELECT id, name FROM houses"
-  @houses = run_sql(sql)
+  @houses = House.all
   erb :new_person
 end
 
 post '/people/new' do
-  name = params[:name]
-  weapon = params[:weapon]
-  age = params[:age]
-  living = params[:living]
-  if living == 'on'
-    living = true
-  else
-    living = false
-  end
-  image = params[:image]
-  house_id = params[:house_id]
-  sql = "INSERT INTO people (name, weapon, age, image, house_id) VALUES ('#{name}', '#{weapon}', #{age}, '#{image}', #{house_id})"
-  run_sql(sql)
+  Person.create(params)
   redirect to '/people'
 end
 
 get '/people' do
-  sql = "SELECT * FROM people"
-  @people = run_sql(sql)
+  @people = Person.all
   erb :people
 end
 
 get '/people/:id' do
   id = params[:id]
-  sql = "SELECT * FROM people WHERE id = #{id}"
-  @person = run_sql(sql).first
+  @people = Person.find(params[:id])
   erb :person
 end
 
 get '/houses/:id' do
   id = params[:id]
-  sql = "SELECT * FROM houses WHERE id = #{id}"
-  @house = run_sql(sql).first
+  @houses = House.find(params[:id])
   erb :house
+end
+
+get '/people/:id/edit' do
+  @people = Person.find(params[:id])
+  erb :edit
+end
+
+get '/houses/:id/edit' do
+  @houses = House.find(params[:id])
+  erb :edit
 end
